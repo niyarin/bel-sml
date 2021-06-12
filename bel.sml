@@ -165,6 +165,12 @@ and bel_eval_prim(ope, expression, global_env, lexical_env) =
         bel_map_eval(bel_cdr(expression),global_env, lexical_env)
     in
       case ope of
-           SYMBOL("join") => bel_join(bel_car(evaled_operands),bel_cadr(evaled_operands))
+           SYMBOL("id") => bel_id(bel_car(evaled_operands),bel_cadr(evaled_operands))
+           |SYMBOL("join") => bel_join(bel_car(evaled_operands),bel_cadr(evaled_operands))
+           |SYMBOL("car") => bel_car(bel_car(evaled_operands))
+           |SYMBOL("cdr") => bel_cdr(bel_car(evaled_operands))
+           |SYMBOL("type") => bel_type(bel_car(evaled_operands))
+           |SYMBOL("xar") => bel_xar(bel_car(evaled_operands),bel_cadr(evaled_operands))
+           |SYMBOL("xdr") => bel_xdr(bel_car(evaled_operands),bel_cadr(evaled_operands))
            |_ => ope
     end;
