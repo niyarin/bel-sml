@@ -125,6 +125,7 @@ fun bel_eval (PAIR(expression), global_env, lexical_env) =
   | bel_eval (bel_obj, global_env, lexical_env) = bel_obj
 and bel_eval_expression (SYMBOL("quote"), expression, global_env, lexical_env) =
     bel_cadr(expression)
+  |bel_eval_expression (SYMBOL("lit"), expression, global_env, lexical_env) = expression
   |bel_eval_expression (ope, expression, global_env, lexical_env) =
     let val evaled_ope = bel_eval(ope,global_env,lexical_env) in
       evaled_ope
