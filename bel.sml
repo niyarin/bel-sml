@@ -12,6 +12,7 @@ fun bel_cdr (PAIR(bel_pair)) = !(#2(!bel_pair))
 
 fun bel_cadr bel_pair = bel_car(bel_cdr(bel_pair));
 fun bel_caar bel_pair = bel_car(bel_car(bel_pair));
+fun bel_caddr bel_pair = bel_cadr(bel_cdr(bel_pair));
 
 fun bel_xar (PAIR(bel_pair), bel_obj) =
     (#1(!bel_pair) := bel_obj;
@@ -115,7 +116,6 @@ read_str_aux cls =
 fun read_str input_str =
     read_str_aux(explode(input_str));
 
-
 fun make_prim (name_string) =
   bel_join(SYMBOL("lit"), bel_join(SYMBOL("prim"), bel_join(SYMBOL(name_string),NIL)));
 
@@ -140,12 +140,31 @@ fun bel_eval (PAIR(expression), global_env, lexical_env) =
   bel_eval_expression(bel_car(PAIR(expression)), PAIR(expression), global_env, lexical_env)
   | bel_eval (SYMBOL("t"), global_env, lexical_env) = SYMBOL("t")
   | bel_eval (SYMBOL("nil"), global_env, lexical_env) = NIL
-  | bel_eval (SYMBOL(sym), global_env, lexical_env) = bel_assq(global_env, SYMBOL(sym))(*WIP*)
+  | bel_eval (SYMBOL(sym), global_env, lexical_env) =
+      bel_cdr(bel_assq(global_env, SYMBOL(sym)))(*WIP*)
   | bel_eval (bel_obj, global_env, lexical_env) = bel_obj
 and bel_eval_expression (SYMBOL("quote"), expression, global_env, lexical_env) =
     bel_cadr(expression)
   |bel_eval_expression (SYMBOL("lit"), expression, global_env, lexical_env) = expression
-  |bel_eval_expression (ope, expression, global_env, lexical_env) =
-    let val evaled_ope = bel_eval(ope,global_env,lexical_env) in
-      evaled_ope
+  |bel_eval_expression (operator, expression, global_env, lexical_env) =
+    let val evaled_operator = bel_eval(operator,global_env,lexical_env) in
+      if (bel_car(evaled_operator) = SYMBOL("lit"))
+      then
+        case bel_cadr(evaled_operator) of
+           SYMBOL("prim") =>
+           bel_eval_prim(bel_caddr(evaled_operator),expression, global_env, lexical_env)
+           |_ => NIL
+      else NIL
+    end
+and bel_map_eval(PAIR(bel_pair), global_env, lexical_env) =
+      bel_join(bel_eval(bel_car(PAIR(bel_pair)), global_env, lexical_env),
+               bel_map_eval(bel_cdr(PAIR(bel_pair)), global_env, lexical_env))
+  | bel_map_eval(_,_,_) = NIL
+and bel_eval_prim(ope, expression, global_env, lexical_env) =
+    let val evaled_operands =
+        bel_map_eval(bel_cdr(expression),global_env, lexical_env)
+    in
+      case ope of
+           SYMBOL("join") => bel_join(bel_car(evaled_operands),bel_cadr(evaled_operands))
+           |_ => ope
     end;
