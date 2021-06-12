@@ -128,7 +128,7 @@ fun make_prims (name_string_list) =
 end;
 
 fun make_default_global (_) =
-  make_prims(["id", "join", "car", "cdr", "type", "xar", "xdr"]);
+  make_prims(["id", "join", "car", "cdr", "type", "xar", "xdr", "coin"]);
 
 fun bel_assq (PAIR(p), bel_obj) =
     if (bel_caar(PAIR(p)) = bel_obj)
@@ -172,5 +172,6 @@ and bel_eval_prim(ope, expression, global_env, lexical_env) =
            |SYMBOL("type") => bel_type(bel_car(evaled_operands))
            |SYMBOL("xar") => bel_xar(bel_car(evaled_operands),bel_cadr(evaled_operands))
            |SYMBOL("xdr") => bel_xdr(bel_car(evaled_operands),bel_cadr(evaled_operands))
+           |SYMBOL("coin") => bel_coin(nil)
            |_ => ope
     end;
