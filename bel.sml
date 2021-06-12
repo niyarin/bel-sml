@@ -9,7 +9,9 @@ fun bel_car (PAIR(bel_pair)) = !(#1(!bel_pair))
 
 fun bel_cdr (PAIR(bel_pair)) = !(#2(!bel_pair))
   | bel_cdr _ = NIL;
+
 fun bel_cadr bel_pair = bel_car(bel_cdr(bel_pair));
+fun bel_caar bel_pair = bel_car(bel_car(bel_pair));
 
 fun bel_xar (PAIR(bel_pair), bel_obj) =
     (#1(!bel_pair) := bel_obj;
@@ -117,11 +119,28 @@ fun read_str input_str =
 fun make_prim (name_string) =
   bel_join(SYMBOL("lit"), bel_join(SYMBOL("prim"), bel_join(SYMBOL(name_string),NIL)));
 
+fun make_prims (name_string_list) =
+  let fun loop (name_list) = 
+  if (name_list = nil)
+  then NIL
+  else bel_join(bel_join(SYMBOL(hd(name_list)), make_prim(hd(name_list))), loop(tl(name_list)))
+  in loop(name_string_list)
+end;
+
+fun make_default_global (_) =
+  make_prims(["id", "join", "car", "cdr", "type", "xar", "xdr"]);
+
+fun bel_assq (PAIR(p), bel_obj) =
+    if (bel_caar(PAIR(p)) = bel_obj)
+    then bel_car(PAIR(p))
+    else bel_assq(bel_cdr(PAIR(p)), bel_obj)
+  |bel_assq (_, _) = NIL;
+
 fun bel_eval (PAIR(expression), global_env, lexical_env) =
   bel_eval_expression(bel_car(PAIR(expression)), PAIR(expression), global_env, lexical_env)
   | bel_eval (SYMBOL("t"), global_env, lexical_env) = SYMBOL("t")
   | bel_eval (SYMBOL("nil"), global_env, lexical_env) = NIL
-  | bel_eval (SYMBOL(sym), global_env, lexical_env) = NIL
+  | bel_eval (SYMBOL(sym), global_env, lexical_env) = bel_assq(global_env, SYMBOL(sym))(*WIP*)
   | bel_eval (bel_obj, global_env, lexical_env) = bel_obj
 and bel_eval_expression (SYMBOL("quote"), expression, global_env, lexical_env) =
     bel_cadr(expression)
