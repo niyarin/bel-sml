@@ -113,4 +113,19 @@ read_str_aux cls =
 fun read_str input_str =
     read_str_aux(explode(input_str));
 
-fun eval (code, global_env, lexical_env) = code;
+
+fun make_prim (name_string) =
+  bel_join(SYMBOL("lit"), bel_join(SYMBOL("prim"), bel_join(SYMBOL(name_string),NIL)));
+
+fun bel_eval (PAIR(expression), global_env, lexical_env) =
+  bel_eval_expression(bel_car(PAIR(expression)), PAIR(expression), global_env, lexical_env)
+  | bel_eval (SYMBOL("t"), global_env, lexical_env) = SYMBOL("t")
+  | bel_eval (SYMBOL("nil"), global_env, lexical_env) = NIL
+  | bel_eval (SYMBOL(sym), global_env, lexical_env) = NIL
+  | bel_eval (bel_obj, global_env, lexical_env) = bel_obj
+and bel_eval_expression (SYMBOL("quote"), expression, global_env, lexical_env) =
+    bel_cadr(expression)
+  |bel_eval_expression (ope, expression, global_env, lexical_env) =
+    let val evaled_ope = bel_eval(ope,global_env,lexical_env) in
+      evaled_ope
+    end;
