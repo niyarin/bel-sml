@@ -49,6 +49,18 @@ let val v = coin_gen coin_seed in
   else NIL
 end;
 
+fun bel_list3(a, b, c) = bel_join(a,bel_join(b,bel_join(c,NIL)));
+
+fun bel_reverse(ls) =
+  let fun loop (ls, res) =
+    if (ls = NIL)
+    then res
+    else loop (bel_cdr(ls), bel_join(bel_car(ls), res))
+  in loop(ls, NIL)
+  end
+
+
+
 fun make_symbol(str) =
   case str of
     "nil" => NIL
@@ -136,42 +148,68 @@ fun bel_assq (PAIR(p), bel_obj) =
     else bel_assq(bel_cdr(PAIR(p)), bel_obj)
   |bel_assq (_, _) = NIL;
 
-fun bel_eval (PAIR(expression), global_env, lexical_env) =
-  bel_eval_expression(bel_car(PAIR(expression)), PAIR(expression), global_env, lexical_env)
-  | bel_eval (SYMBOL("t"), global_env, lexical_env) = SYMBOL("t")
-  | bel_eval (SYMBOL("nil"), global_env, lexical_env) = NIL
-  | bel_eval (SYMBOL(sym), global_env, lexical_env) =
-      bel_cdr(bel_assq(global_env, SYMBOL(sym)))(*WIP*)
-  | bel_eval (bel_obj, global_env, lexical_env) = bel_obj
-and bel_eval_expression (SYMBOL("quote"), expression, global_env, lexical_env) =
-    bel_cadr(expression)
-  |bel_eval_expression (SYMBOL("lit"), expression, global_env, lexical_env) = expression
-  |bel_eval_expression (operator, expression, global_env, lexical_env) =
-    let val evaled_operator = bel_eval(operator,global_env,lexical_env) in
-      if (bel_car(evaled_operator) = SYMBOL("lit"))
-      then
-        case bel_cadr(evaled_operator) of
-           SYMBOL("prim") =>
-           bel_eval_prim(bel_caddr(evaled_operator),expression, global_env, lexical_env)
-           |_ => NIL
-      else NIL
+fun bel_eval_stack(PAIR(expression), stack, next,global_env, lexical_env) =
+      bel_eval_expression(bel_car(PAIR(expression)), PAIR(expression),
+                          stack, next, global_env, lexical_env)
+  | bel_eval_stack (SYMBOL("t"), stack, next, global_env, lexical_env) =
+      bel_val_push(SYMBOL("t"), stack, global_env, lexical_env)
+  | bel_eval_stack (SYMBOL("nil"), stack, next, global_env, lexical_env) =
+      bel_val_push(NIL, stack, global_env, lexical_env)
+  | bel_eval_stack (SYMBOL(sym), stack, next, global_env, lexical_env) =
+      bel_val_push(bel_cdr(bel_assq(global_env, SYMBOL(sym))),
+                   stack, global_env, lexical_env)
+  | bel_eval_stack (bel_obj, stack, next, global_env, lexical_env) =
+      bel_val_push(bel_obj, stack, global_env, lexical_env)
+and bel_val_push(value, NIL,  global_env, lexical_env) = value
+  | bel_val_push(value, stack_pair, global_env, lexical_env) =
+  let val stack_cell = bel_car(stack_pair)
+      val expression = bel_car(stack_cell)
+      val evaled = bel_cadr(stack_cell)
+      val next = bel_caddr(stack_cell)
+  in bel_eval_stack(expression, bel_cdr(stack_pair), (bel_join(value, evaled), bel_cdr(next)), global_env, lexical_env)
+  end
+and bel_eval_expression (SYMBOL("quote"), expression, stack, next, global_env, lexical_env) =
+      bel_val_push(bel_cadr(expression), stack, global_env, lexical_env)
+  | bel_eval_expression (SYMBOL("lit"), expression, stack, next, global_env, lexical_env) =
+      bel_val_push(expression, stack, global_env, lexical_env)
+  |bel_eval_expression (operator, expression, stack, (NIL, NIL) , global_env, lexical_env) =
+    bel_eval_expression (operator, expression, stack, (NIL, expression) , global_env, lexical_env)
+  |bel_eval_expression (operator, expression, stack, (evaled, NIL) , global_env, lexical_env) =
+    let val evaled = bel_reverse( evaled) in
+      case bel_cadr(bel_car(evaled)) of
+         SYMBOL("prim") => bel_eval_prim(bel_caddr(bel_car(evaled)), bel_cdr(evaled), stack, global_env, lexical_env)
+         |_ => NIL
     end
-and bel_map_eval(PAIR(bel_pair), global_env, lexical_env) =
-      bel_join(bel_eval(bel_car(PAIR(bel_pair)), global_env, lexical_env),
-               bel_map_eval(bel_cdr(PAIR(bel_pair)), global_env, lexical_env))
-  | bel_map_eval(_,_,_) = NIL
-and bel_eval_prim(ope, expression, global_env, lexical_env) =
-    let val evaled_operands =
-        bel_map_eval(bel_cdr(expression),global_env, lexical_env)
-    in
+  |bel_eval_expression (operator, expression, stack, (evaled, next) , global_env, lexical_env) =
+  bel_eval_stack(bel_car(next), bel_join(bel_list3(expression, evaled, next), stack),
+                (NIL, NIL), global_env, lexical_env)
+and bel_eval_prim(ope, evaled_operands, stack, global_env, lexical_env) =
       case ope of
-           SYMBOL("id") => bel_id(bel_car(evaled_operands),bel_cadr(evaled_operands))
-           |SYMBOL("join") => bel_join(bel_car(evaled_operands),bel_cadr(evaled_operands))
-           |SYMBOL("car") => bel_car(bel_car(evaled_operands))
-           |SYMBOL("cdr") => bel_cdr(bel_car(evaled_operands))
-           |SYMBOL("type") => bel_type(bel_car(evaled_operands))
-           |SYMBOL("xar") => bel_xar(bel_car(evaled_operands),bel_cadr(evaled_operands))
-           |SYMBOL("xdr") => bel_xdr(bel_car(evaled_operands),bel_cadr(evaled_operands))
-           |SYMBOL("coin") => bel_coin(nil)
-           |_ => ope
-    end;
+           SYMBOL("id") =>
+             bel_val_push(bel_id(bel_car(evaled_operands),bel_cadr(evaled_operands)),
+                          stack, global_env, lexical_env)
+           |SYMBOL("join") =>
+             bel_val_push(bel_join(bel_car(evaled_operands),bel_cadr(evaled_operands)),
+                          stack, global_env, lexical_env)
+           |SYMBOL("car") =>
+             bel_val_push(bel_car(bel_car(evaled_operands)),
+                          stack, global_env, lexical_env)
+           |SYMBOL("cdr") =>
+             bel_val_push(bel_cdr(bel_car(evaled_operands)),
+                          stack, global_env, lexical_env)
+           |SYMBOL("type") =>
+             bel_val_push(bel_type(bel_car(evaled_operands)),
+                          stack, global_env, lexical_env)
+           |SYMBOL("xar") =>
+             bel_val_push(bel_xar(bel_car(evaled_operands),bel_cadr(evaled_operands)),
+                          stack, global_env, lexical_env)
+           |SYMBOL("xdr") =>
+             bel_val_push(bel_xdr(bel_car(evaled_operands),bel_cadr(evaled_operands)),
+                          stack, global_env, lexical_env)
+           |SYMBOL("coin") =>
+             bel_val_push(bel_coin(nil),
+                          stack, global_env, lexical_env)
+           |_ => NIL;
+
+fun bel_eval_simple(expression) =
+  bel_eval_stack(expression, NIL, (NIL, NIL) , make_default_global(nil), NIL);
