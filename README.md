@@ -39,6 +39,6 @@
 ### Additional features
 | name | status |
 | ------------- | ------------- |
-| set  |   |
+| set  |  ✔️ |
 | def  |   |
 | mac  |   |
