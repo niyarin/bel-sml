@@ -162,6 +162,16 @@ fun bel_update_alist (als, key, v) =(*alsがNILであってはならない*)
       else bel_xdr(apair, v)
     end
 
+fun bel_make_local_env (formals, args, tail) =
+    let fun loop (formals, args, res) = 
+        if (formals = NIL)
+        then res
+        else loop(bel_cdr(formals), bel_cdr(args),
+          bel_join(bel_join(bel_car(formals), bel_car(args)), res))
+    in
+      loop (formals, args, tail)
+    end
+
 fun bel_eval_stack(PAIR(expression), stack, next,global_env, lexical_env) =
       bel_eval_expression(bel_car(PAIR(expression)), PAIR(expression),
                           stack, next, global_env, lexical_env)
@@ -170,8 +180,14 @@ fun bel_eval_stack(PAIR(expression), stack, next,global_env, lexical_env) =
   | bel_eval_stack (SYMBOL("nil"), stack, next, global_env, lexical_env) =
       bel_val_push(NIL, stack, global_env, lexical_env)
   | bel_eval_stack (SYMBOL(sym), stack, next, global_env, lexical_env) =
-      bel_val_push(bel_cdr(bel_assq(global_env, SYMBOL(sym))),
-                   stack, global_env, lexical_env)
+    let val hit_local = bel_assq(lexical_env, SYMBOL(sym))
+    in
+      if (hit_local = NIL)
+      then bel_val_push(bel_cdr(bel_assq(global_env, SYMBOL(sym))),
+                        stack, global_env, lexical_env)
+      else bel_val_push(bel_cdr(hit_local),
+                        stack, global_env, lexical_env)
+    end
   | bel_eval_stack (bel_obj, stack, next, global_env, lexical_env) =
       bel_val_push(bel_obj, stack, global_env, lexical_env)
 and bel_val_push(value, NIL,  global_env, lexical_env) = value
@@ -198,9 +214,19 @@ and bel_eval_expression (SYMBOL("quote"), expression, stack, next, global_env, l
   |bel_eval_expression (operator, expression, stack, (NIL, NIL) , global_env, lexical_env) =
     bel_eval_expression (operator, expression, stack, (NIL, expression) , global_env, lexical_env)
   |bel_eval_expression (operator, expression, stack, (evaled, NIL) , global_env, lexical_env) =
+    (* To check lit*)
     let val evaled = bel_reverse( evaled) in
       case bel_cadr(bel_car(evaled)) of
          SYMBOL("prim") => bel_eval_prim(bel_caddr(bel_car(evaled)), bel_cdr(evaled), stack, global_env, lexical_env)
+         |SYMBOL("clo") =>
+             let val clo = bel_car(evaled)
+                 val clo_env = bel_caddr(clo)
+                 val formals = bel_caddr(bel_cdr(clo))
+                 val body = bel_caddr(bel_cddr(clo))
+             in
+               bel_eval_stack(body, stack, (NIL, NIL),global_env,
+                              bel_make_local_env(formals, bel_cdr(evaled), clo_env))
+             end
          |_ => NIL
     end
   |bel_eval_expression (operator, expression, stack, (evaled, next) , global_env, lexical_env) =
