@@ -50,6 +50,21 @@ let val v = coin_gen coin_seed in
   else NIL
 end;
 
+fun bel_syn (bel_char_list) =
+  let fun loop (ls, carray) =
+    if (ls = NIL)
+    then SYMBOL(implode(carray))
+    else let val CHAR(c) = bel_car(ls)
+         in
+            loop(bel_cdr(ls), carray@[c])
+         end
+  in
+    loop (bel_char_list, [])
+  end
+
+
+
+
 fun bel_list3(a, b, c) = bel_join(a,bel_join(b,bel_join(c,NIL)));
 
 fun bel_reverse(ls) =
@@ -142,7 +157,8 @@ fun make_prims (name_string_list) =
 end;
 
 fun make_default_global (_) =
-  make_prims(["id", "join", "car", "cdr", "type", "xar", "xdr", "coin"]);
+  make_prims(["id", "join", "car", "cdr", "type",
+              "xar", "xdr", "coin", "sym"]);
 
 fun bel_assq (PAIR(p), bel_obj) =
     if (bel_caar(PAIR(p)) = bel_obj)
@@ -261,6 +277,10 @@ and bel_eval_prim(ope, evaled_operands, stack, global_env, lexical_env) =
            |SYMBOL("coin") =>
              bel_val_push(bel_coin(nil),
                           stack, global_env, lexical_env)
+           |SYMBOL("sym") =>
+            bel_val_push(bel_syn(bel_car(evaled_operands)),
+                         stack, global_env, lexical_env)
+
            |_ => NIL;
 
 fun bel_eval_simple(expression) =
