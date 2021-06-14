@@ -97,7 +97,7 @@ and char_list_to_bel_string (cls) =
 and read_string cls =
   let fun loop (res, cls) = 
     if (hd(cls) = #"\"")
-    then (res, tl(cls))
+    then (char_list_to_bel_string(res), tl(cls))
     else loop(res@[hd(cls)], tl(cls))
   in loop([], cls)
   end
@@ -123,6 +123,7 @@ read_str_aux cls =
     case hd(cls) of
       #"(" => read_list(tl(cls))
        | #")" => (NIL,cls)
+       | #"\"" => read_string(tl(cls))
        | _ => read_symbol(cls)
 
 
@@ -198,7 +199,9 @@ and bel_val_push(value, NIL,  global_env, lexical_env) = value
           val next = bel_caddr(stack_cell)
       in bel_eval_stack(expression, bel_cdr(stack_pair), (bel_join(value, evaled), next), global_env, lexical_env)
       end
-and bel_eval_expression (SYMBOL("quote"), expression, stack, next, global_env, lexical_env) =
+and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_env) =
+      bel_val_push(expression , stack, global_env, lexical_env)
+  |bel_eval_expression (SYMBOL("quote"), expression, stack, next, global_env, lexical_env) =
       bel_val_push(bel_cadr(expression), stack, global_env, lexical_env)
   | bel_eval_expression (SYMBOL("lit"), expression, stack, next, global_env, lexical_env) =
       bel_val_push(expression, stack, global_env, lexical_env)
