@@ -287,3 +287,29 @@ fun bel_eval_simple(expression) =
   let val global = make_default_global(nil)
       in bel_eval_stack(expression, NIL, (NIL, NIL) , global, NIL)
   end;
+
+fun bel_obj_to_sml_str (bel_obj) =
+    bel_obj_to_sml_str_aux(bel_obj, [])
+and search_memo (obj, memo) =
+  let fun loop ([], idx) = ~1
+        | loop (tgt::rest, idx) =
+            if (tgt = obj)
+            then idx
+            else loop(rest, idx+1)
+  in loop(memo, 0)
+  end
+and bel_obj_to_sml_str_aux (NIL, _) =
+    "nil"
+  | bel_obj_to_sml_str_aux(SYMBOL(sym), memo_array) =
+    sym
+  | bel_obj_to_sml_str_aux(CHAR(c), memo_array) = implode([c])
+  | bel_obj_to_sml_str_aux(pair, memo_array) =
+     let val memo_idx = search_memo(pair, memo_array) in
+       if (memo_idx = ~1)
+       then "("
+            ^ bel_obj_to_sml_str_aux(bel_car(pair), memo_array@[pair])
+            ^ " . "
+            ^ bel_obj_to_sml_str_aux(bel_cdr(pair), memo_array@[pair])
+            ^ ")"
+       else "#" ^ Int.toString(memo_idx)
+     end
