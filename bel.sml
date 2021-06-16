@@ -62,10 +62,9 @@ fun bel_syn (bel_char_list) =
     loop (bel_char_list, [])
   end
 
-
-
-
-fun bel_list3(a, b, c) = bel_join(a,bel_join(b,bel_join(c,NIL)));
+fun bel_list2(a, b) = bel_join(a, bel_join(b, NIL));
+fun bel_list3(a, b, c) = bel_join(a, bel_list2(a,b));
+fun bel_list4(a, b, c, d) = bel_join(a,bel_list3(b, c, d));
 
 fun bel_reverse(ls) =
   let fun loop (ls, res) =
@@ -230,6 +229,15 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
       (if (evaled = NIL) then NIL else bel_update_alist(global_env, bel_cadr(evaled), bel_car(evaled));
        bel_eval_stack(bel_cadr(next), bel_join(bel_list3(expression, bel_join(bel_car(next), NIL), bel_cddr(next)), stack),
                      (NIL, NIL), global_env, lexical_env))
+  | bel_eval_expression (SYMBOL("ccc"), expression, stack,
+                         next, global_env, lexical_env) =
+     let val cont = bel_list4(SYMBOL("lit"),
+                              SYMBOL("cont"),
+                              stack,
+                              lexical_env)
+     in bel_join(bel_cadr(expression),
+                 bel_join(bel_list2(SYMBOL("quote"), cont),NIL))
+     end
   |bel_eval_expression (operator, expression, stack, (NIL, NIL) , global_env, lexical_env) =
     bel_eval_expression (operator, expression, stack, (NIL, expression) , global_env, lexical_env)
   |bel_eval_expression (operator, expression, stack, (evaled, NIL) , global_env, lexical_env) =
