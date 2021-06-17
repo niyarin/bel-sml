@@ -63,7 +63,7 @@ fun bel_syn (bel_char_list) =
   end
 
 fun bel_list2(a, b) = bel_join(a, bel_join(b, NIL));
-fun bel_list3(a, b, c) = bel_join(a, bel_list2(a,b));
+fun bel_list3(a, b, c) = bel_join(a, bel_list2(b, c));
 fun bel_list4(a, b, c, d) = bel_join(a,bel_list3(b, c, d));
 
 fun bel_reverse(ls) =
@@ -186,8 +186,11 @@ fun bel_make_local_env (formals, args, tail) =
     let fun loop (formals, args, res) = 
         if (formals = NIL)
         then res
-        else loop(bel_cdr(formals), bel_cdr(args),
-          bel_join(bel_join(bel_car(formals), bel_car(args)), res))
+        else
+          case formals of
+            SYMBOL(_) => bel_join(bel_join(formals, args), res)
+             | _ => loop(bel_cdr(formals), bel_cdr(args),
+                         bel_join(bel_join(bel_car(formals), bel_car(args)), res))
     in
       loop (formals, args, tail)
     end
@@ -292,7 +295,6 @@ and bel_eval_prim(ope, evaled_operands, stack, global_env, lexical_env) =
            |SYMBOL("sym") =>
             bel_val_push(bel_syn(bel_car(evaled_operands)),
                          stack, global_env, lexical_env)
-
            |_ => NIL;
 
 fun bel_eval_simple(expression) =
