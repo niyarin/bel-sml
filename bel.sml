@@ -195,6 +195,9 @@ fun bel_make_local_env (formals, args, tail) =
       loop (formals, args, tail)
     end
 
+exception BelUnknownPrimitive;
+exception BelUnknownLit;
+
 fun bel_eval_stack(PAIR(expression), stack, next,global_env, lexical_env) =
       bel_eval_expression(bel_car(PAIR(expression)), PAIR(expression),
                           stack, next, global_env, lexical_env)
@@ -261,7 +264,7 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
                bel_eval_stack(body, stack, (NIL, NIL),global_env,
                               bel_make_local_env(formals, bel_cdr(evaled), clo_env))
              end
-         |_ => NIL
+         |_ => raise BelUnknownLit
     end
   |bel_eval_expression (operator, expression, stack, (evaled, next) , global_env, lexical_env) =
     bel_eval_stack(bel_car(next), bel_join(bel_list3(expression, evaled, bel_cdr(next)), stack),
@@ -295,7 +298,7 @@ and bel_eval_prim(ope, evaled_operands, stack, global_env, lexical_env) =
            |SYMBOL("sym") =>
             bel_val_push(bel_syn(bel_car(evaled_operands)),
                          stack, global_env, lexical_env)
-           |_ => NIL;
+           |_ => raise  BelUnknownPrimitive;
 
 fun bel_eval_simple(expression) =
   let val global = make_default_global(nil)
