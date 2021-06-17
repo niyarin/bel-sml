@@ -136,9 +136,13 @@ read_str_aux cls =
   else
     case hd(cls) of
       #"(" => read_list(tl(cls))
-       | #")" => (NIL,cls)
-       | #"\"" => read_string(tl(cls))
-       | _ => read_symbol(cls)
+      | #"'" =>
+          let val (quote_body,next_cls) = read_str_aux(tl(cls)) in
+           (bel_join(SYMBOL("quote"), bel_join(quote_body, NIL)), next_cls)
+          end
+      | #")" => (NIL,cls)
+      | #"\"" => read_string(tl(cls))
+      | _ => read_symbol(cls)
 
 
 fun read_str input_str =
