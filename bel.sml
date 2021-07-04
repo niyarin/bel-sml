@@ -224,6 +224,10 @@ and bel_val_push(value, NIL,  global_env, lexical_env) = value
           val next = bel_caddr(stack_cell)
       in bel_eval_stack(expression, bel_cdr(stack_pair), (bel_join(value, evaled), next), global_env, lexical_env)
       end
+and bel_contain_macro_in_evaled_p (evaled) =
+    bel_cdr(evaled) = NIL andalso
+    bel_caar(evaled) = SYMBOL("lit") andalso
+    bel_cadr(bel_car(evaled)) = SYMBOL("mac")
 and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_env) =
       bel_val_push(expression , stack, global_env, lexical_env)
   |bel_eval_expression (SYMBOL("quote"), expression, stack, next, global_env, lexical_env) =
@@ -264,9 +268,22 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
                bel_eval_stack(body, stack, (NIL, NIL),global_env,
                               bel_make_local_env(formals, bel_cdr(evaled), clo_env))
              end
-         |_ => raise BelUnknownLit
+         |_ =>
+             let val SYMBOL(sym) = bel_cadr(bel_car(evaled)) in
+             (print(sym); raise BelUnknownLit)
+             end
     end
   |bel_eval_expression (operator, expression, stack, (evaled, next) , global_env, lexical_env) =
+   if (bel_contain_macro_in_evaled_p(evaled))
+   then
+        let fun add_quote_and_run (NIL) = NIL
+                |add_quote_and_run  (ls) = bel_join(bel_list2(SYMBOL("quote"), bel_car(ls)),
+                                  add_quote_and_run(bel_cdr(ls)))
+            val quoted_eval1 = bel_join(bel_caddr(bel_car(evaled)), add_quote_and_run(next))
+            val quoted_eval2 = bel_eval_stack(quoted_eval1, NIL, (NIL, NIL), global_env, NIL)
+            in bel_eval_stack(quoted_eval2, stack, (NIL, NIL), global_env, lexical_env)
+        end
+   else
     bel_eval_stack(bel_car(next), bel_join(bel_list3(expression, evaled, bel_cdr(next)), stack),
                   (NIL, NIL), global_env, lexical_env)
 and bel_eval_prim(ope, evaled_operands, stack, global_env, lexical_env) =
