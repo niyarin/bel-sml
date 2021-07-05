@@ -243,6 +243,13 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
       (if (evaled = NIL) then NIL else bel_update_alist(global_env, bel_cadr(evaled), bel_car(evaled));
        bel_eval_stack(bel_cadr(next), bel_join(bel_list3(expression, bel_join(bel_car(next), NIL), bel_cddr(next)), stack),
                      (NIL, NIL), global_env, lexical_env))
+  | bel_eval_expression (SYMBOL("if"), expression, stack, (NIL, NIL), global_env, lexical_env) =
+         bel_eval_stack(bel_cadr(expression), bel_join(bel_list3(expression, NIL, NIL), stack),
+                        (NIL, NIL), global_env, lexical_env)
+  | bel_eval_expression (SYMBOL("if"), expression, stack, (evaled, NIL), global_env, lexical_env) =
+        if (bel_car(evaled) = NIL)
+        then bel_eval_stack(bel_cadr(bel_cddr(expression)), stack, (NIL, NIL), global_env,lexical_env)
+        else bel_eval_stack(bel_cadr(bel_cdr(expression)), stack, (NIL, NIL), global_env,lexical_env)
   | bel_eval_expression (SYMBOL("ccc"), expression, stack,
                          next, global_env, lexical_env) =
      let val cont = bel_list4(SYMBOL("lit"),
