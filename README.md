@@ -29,7 +29,7 @@
 | quote  |  ✔️ |
 | lit  |  ✔️ |
 | if  |  ✔️ |
-| apply  |  |
+| apply  |  ✔️ |
 | where  |  |
 | dyn  |  |
 | after |  |

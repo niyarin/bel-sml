@@ -66,16 +66,19 @@ fun bel_list2(a, b) = bel_join(a, bel_join(b, NIL));
 fun bel_list3(a, b, c) = bel_join(a, bel_list2(b, c));
 fun bel_list4(a, b, c, d) = bel_join(a,bel_list3(b, c, d));
 
-fun bel_reverse(ls) =
+fun bel_reverse_with_tail(ls,tail) =
   let fun loop (ls, res) =
     if (ls = NIL)
     then res
     else loop (bel_cdr(ls), bel_join(bel_car(ls), res))
-  in loop(ls, NIL)
+  in loop(ls, tail)
   end
 
+fun bel_reverse(ls) = bel_reverse_with_tail(ls, NIL);
 
-
+fun map_add_quote (NIL) = NIL
+  |map_add_quote  (ls) = bel_join(bel_list2(SYMBOL("quote"), bel_car(ls)),
+                                      map_add_quote(bel_cdr(ls)));
 fun make_symbol(str) =
   case str of
     "nil" => NIL
@@ -250,6 +253,15 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
         if (bel_car(evaled) = NIL)
         then bel_eval_stack(bel_cadr(bel_cddr(expression)), stack, (NIL, NIL), global_env,lexical_env)
         else bel_eval_stack(bel_cadr(bel_cdr(expression)), stack, (NIL, NIL), global_env,lexical_env)
+  | bel_eval_expression (SYMBOL("apply"), expression, stack, (NIL, NIL), global_env, lexical_env) =
+        bel_eval_stack(bel_caddr(expression), bel_join(bel_list3(expression, NIL, bel_cddr(bel_cdr(expression))), stack),
+                      (NIL,  NIL), global_env,lexical_env)
+  | bel_eval_expression (SYMBOL("apply"), expression, stack, (evaled, NIL), global_env, lexical_env) =
+       bel_eval_stack( bel_join(bel_cadr(expression), map_add_quote(bel_reverse_with_tail(bel_cdr(evaled), bel_car(evaled)))),
+                       stack,(NIL, NIL), global_env, lexical_env)
+  | bel_eval_expression (SYMBOL("apply"), expression, stack, (evaled, next), global_env, lexical_env) =
+        bel_eval_stack(bel_car(next), bel_join(bel_list3(expression, evaled, bel_cdr(next)), stack),
+                       (NIL,  NIL), global_env,lexical_env)
   | bel_eval_expression (SYMBOL("ccc"), expression, stack,
                          next, global_env, lexical_env) =
      let val cont = bel_list4(SYMBOL("lit"),
@@ -283,10 +295,7 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
   |bel_eval_expression (operator, expression, stack, (evaled, next) , global_env, lexical_env) =
    if (bel_contain_macro_in_evaled_p(evaled))
    then
-        let fun add_quote_and_run (NIL) = NIL
-                |add_quote_and_run  (ls) = bel_join(bel_list2(SYMBOL("quote"), bel_car(ls)),
-                                  add_quote_and_run(bel_cdr(ls)))
-            val quoted_eval1 = bel_join(bel_caddr(bel_car(evaled)), add_quote_and_run(next))
+        let val quoted_eval1 = bel_join(bel_caddr(bel_car(evaled)), map_add_quote(next))
             val quoted_eval2 = bel_eval_stack(quoted_eval1, NIL, (NIL, NIL), global_env, NIL)
             in bel_eval_stack(quoted_eval2, stack, (NIL, NIL), global_env, lexical_env)
         end
