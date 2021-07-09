@@ -76,6 +76,22 @@ fun bel_reverse_with_tail(ls,tail) =
 
 fun bel_reverse(ls) = bel_reverse_with_tail(ls, NIL);
 
+fun bel_concatenate(ls) =
+let val head_pair = bel_join(NIL,NIL)
+    val tconc = bel_join(head_pair, head_pair)
+    fun add_val_to_tconc(NIL, tconc) =
+      NIL
+      | add_val_to_tconc(ls, tconc) =
+      (bel_xdr(bel_cdr(tconc), bel_join(bel_car(ls),NIL));
+       bel_xdr(tconc, bel_cddr(tconc));
+       add_val_to_tconc(bel_cdr(ls), tconc))
+    fun concatenate_aux(ls, tconc) =
+      if (bel_cdr(ls) = NIL)
+      then (bel_xdr(bel_cdr(tconc), bel_car(ls)); bel_cdr(bel_car(tconc)))
+      else (add_val_to_tconc(bel_car(ls), tconc); concatenate_aux(bel_cdr(ls),tconc))
+in concatenate_aux(ls, tconc)
+end
+
 fun map_add_quote (NIL) = NIL
   |map_add_quote  (ls) = bel_join(bel_list2(SYMBOL("quote"), bel_car(ls)),
                                       map_add_quote(bel_cdr(ls)));
