@@ -379,8 +379,13 @@ and bel_obj_to_sml_str_aux (NIL, _) =
        else "#" ^ Int.toString(memo_idx)
      end
 
-fun simple_repl _ =(*ECHO REPL*)
+fun simple_repl_loop env =(*ECHO REPL*)
     (print(">");
      case TextIO.inputLine TextIO.stdIn of
-     SOME line => (print(line);print("\n");simple_repl(NIL))
-     |NONE => ());
+     SOME line =>
+     let val expression = #1(read_str(line))
+         val evaled = bel_eval_stack(expression, NIL, (NIL, NIL) , env, NIL)
+     in (print(bel_obj_to_sml_str(evaled));print("\n");simple_repl_loop(env))
+     end
+     |NONE => ())
+and bel_simple_repl _ = simple_repl_loop(make_default_global(nil));
