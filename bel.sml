@@ -79,8 +79,7 @@ fun bel_reverse(ls) = bel_reverse_with_tail(ls, NIL);
 fun bel_concatenate(ls) =
 let val head_pair = bel_join(NIL,NIL)
     val tconc = bel_join(head_pair, head_pair)
-    fun add_val_to_tconc(NIL, tconc) =
-      NIL
+    fun add_val_to_tconc(NIL, tconc) = NIL
       | add_val_to_tconc(ls, tconc) =
       (bel_xdr(bel_cdr(tconc), bel_join(bel_car(ls),NIL));
        bel_xdr(tconc, bel_cddr(tconc));
@@ -379,3 +378,9 @@ and bel_obj_to_sml_str_aux (NIL, _) =
             ^ ")"
        else "#" ^ Int.toString(memo_idx)
      end
+
+fun simple_repl _ =(*ECHO REPL*)
+    (print(">");
+     case TextIO.inputLine TextIO.stdIn of
+     SOME line => (print(line);print("\n");simple_repl(NIL))
+     |NONE => ());
