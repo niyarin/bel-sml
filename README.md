@@ -42,3 +42,6 @@
 | set  |  ✔️ |
 | def  |   |
 | mac  |  ✔️ |
+| quasiquote  |  ✔️ |
+| unquote  |  ✔️ |
+| unquote-splicing  |  ✔️ |
