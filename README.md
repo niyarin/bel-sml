@@ -40,7 +40,7 @@
 | name | status |
 | ------------- | ------------- |
 | set  |  ✔️ |
-| def  |   |
+| def  |  ✔️ |
 | mac  |  ✔️ |
 | quasiquote  |  ✔️ |
 | unquote  |  ✔️ |

@@ -65,6 +65,7 @@ fun bel_syn (bel_char_list) =
 fun bel_list2(a, b) = bel_join(a, bel_join(b, NIL));
 fun bel_list3(a, b, c) = bel_join(a, bel_list2(b, c));
 fun bel_list4(a, b, c, d) = bel_join(a,bel_list3(b, c, d));
+fun bel_list5(a, b, c, d, e) = bel_join(a,bel_list4(b, c, d, e));
 
 fun bel_reverse_with_tail(ls,tail) =
   let fun loop (ls, res) =
@@ -340,6 +341,11 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
         if (bel_car(evaled) = NIL)
         then bel_eval_stack(bel_cadr(bel_cddr(expression)), stack, (NIL, NIL), global_env,lexical_env)
         else bel_eval_stack(bel_cadr(bel_cdr(expression)), stack, (NIL, NIL), global_env,lexical_env)
+  | bel_eval_expression(SYMBOL("def"), expression, stack, (NIL,NIL), global_env, lexical_env) =
+        bel_eval_stack(bel_list3(SYMBOL("set"), bel_cadr(expression),
+                                 bel_list5(SYMBOL("lit"), SYMBOL("clo"), NIL,
+                                 bel_cadr(bel_cdr(expression)),bel_cadr(bel_cddr(expression)))),
+                       stack, (NIL, NIL), global_env, lexical_env)
   | bel_eval_expression (SYMBOL("apply"), expression, stack, (NIL, NIL), global_env, lexical_env) =
         bel_eval_stack(bel_caddr(expression), bel_join(bel_list3(expression, NIL, bel_cddr(bel_cdr(expression))), stack),
                       (NIL,  NIL), global_env,lexical_env)
