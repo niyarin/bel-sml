@@ -91,6 +91,63 @@ let val head_pair = bel_join(NIL,NIL)
 in concatenate_aux(ls, tconc)
 end
 
+fun make_prim (name_string) =
+  bel_join(SYMBOL("lit"), bel_join(SYMBOL("prim"), bel_join(SYMBOL(name_string),NIL)));
+
+fun bel_obj_to_sml_str (bel_obj) =
+    bel_obj_to_sml_str_aux(bel_obj, [])
+and search_memo (obj, memo) =
+  let fun loop ([], idx) = ~1
+        | loop (tgt::rest, idx) =
+            if (tgt = obj)
+            then idx
+            else loop(rest, idx+1)
+  in loop(memo, 0)
+  end
+and bel_obj_to_sml_str_aux (NIL, _) =
+    "nil"
+  | bel_obj_to_sml_str_aux(SYMBOL(sym), memo_array) =
+    sym
+  | bel_obj_to_sml_str_aux(CHAR(c), memo_array) = implode([c])
+  | bel_obj_to_sml_str_aux(pair, memo_array) =
+     let val memo_idx = search_memo(pair, memo_array) in
+       if (memo_idx = ~1)
+       then "("
+            ^ bel_obj_to_sml_str_aux(bel_car(pair), memo_array@[pair])
+            ^ " . "
+            ^ bel_obj_to_sml_str_aux(bel_cdr(pair), memo_array@[pair])
+            ^ ")"
+       else "#" ^ Int.toString(memo_idx)
+     end
+
+fun bel_print (obj) = print(bel_obj_to_sml_str(obj));
+
+(*一部のSYMBOL("concatenate")みたいなのをlitにかえる*)
+fun quasi_quote_traverse obj =
+let val list_lit = make_prim("list")
+    val join_lit = make_prim("join")
+    val concatenate_lit = make_prim("concatenate")
+  fun quasi_quote_traverse_internal(pair as PAIR(_)) =
+          bel_list2(concatenate_lit ,bel_join(list_lit, quasi_quote_traverse_aux(pair)))
+    | quasi_quote_traverse_internal(other) =
+          bel_list2(SYMBOL("quote"), other)
+  and quasi_quote_traverse_aux(ls as PAIR(_)) =
+    (case bel_car(ls) of
+        pair as PAIR(_) =>
+            (case bel_car(pair) of
+                  SYMBOL("unquote") =>
+                  bel_join(bel_list3(join_lit,bel_cadr(pair),NIL),
+                           quasi_quote_traverse_aux(bel_cdr(ls)))
+                  |SYMBOL("unquote-splicing") =>
+                  bel_join(bel_cadr(pair),quasi_quote_traverse_aux(bel_cdr(ls)))
+                  |_ =>
+                  bel_join(bel_list3(join_lit,quasi_quote_traverse_internal(pair),NIL),quasi_quote_traverse_aux(bel_cdr(ls))))
+        |_ => bel_join(bel_list2(SYMBOL("quote"),bel_join(bel_car(ls), NIL)),
+                       quasi_quote_traverse_aux(bel_cdr(ls))))
+  | quasi_quote_traverse_aux(_) = NIL
+in quasi_quote_traverse_internal(obj)
+end;
+
 fun map_add_quote (NIL) = NIL
   |map_add_quote  (ls) = bel_join(bel_list2(SYMBOL("quote"), bel_car(ls)),
                                       map_add_quote(bel_cdr(ls)));
@@ -166,8 +223,6 @@ read_str_aux cls =
 fun read_str input_str =
     read_str_aux(explode(input_str));
 
-fun make_prim (name_string) =
-  bel_join(SYMBOL("lit"), bel_join(SYMBOL("prim"), bel_join(SYMBOL(name_string),NIL)));
 
 fun make_prims (name_string_list) =
   let fun loop (name_list) = 
@@ -271,6 +326,8 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
   | bel_eval_expression (SYMBOL("apply"), expression, stack, (NIL, NIL), global_env, lexical_env) =
         bel_eval_stack(bel_caddr(expression), bel_join(bel_list3(expression, NIL, bel_cddr(bel_cdr(expression))), stack),
                       (NIL,  NIL), global_env,lexical_env)
+  | bel_eval_expression( SYMBOL("quasiquote"), expression, stack, (NIL, NIL), global_env, lexical_env) =
+        bel_eval_stack(quasi_quote_traverse(bel_cadr(expression)), stack, (NIL, NIL), global_env, lexical_env)
   | bel_eval_expression (SYMBOL("apply"), expression, stack, (evaled, NIL), global_env, lexical_env) =
        bel_eval_stack( bel_join(bel_cadr(expression), map_add_quote(bel_reverse_with_tail(bel_cdr(evaled), bel_car(evaled)))),
                        stack,(NIL, NIL), global_env, lexical_env)
@@ -303,8 +360,8 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
                               bel_make_local_env(formals, bel_cdr(evaled), clo_env))
              end
          |_ =>
-             let val SYMBOL(sym) = bel_cadr(bel_car(evaled)) in
-             (print(sym); raise BelUnknownLit)
+             let val SYMBOL(sym) = bel_cadr(bel_car(evaled))
+             in (print(sym);print("\n"); raise BelUnknownLit)
              end
     end
   |bel_eval_expression (operator, expression, stack, (evaled, next) , global_env, lexical_env) =
@@ -346,6 +403,10 @@ and bel_eval_prim(ope, evaled_operands, stack, global_env, lexical_env) =
            |SYMBOL("sym") =>
             bel_val_push(bel_syn(bel_car(evaled_operands)),
                          stack, global_env, lexical_env)
+           |SYMBOL("concatenate") =>
+            bel_val_push(bel_concatenate(bel_car(evaled_operands)),
+                         stack, global_env, lexical_env)
+            |SYMBOL("list") => bel_val_push(evaled_operands,stack, global_env, lexical_env)
            |_ => raise  BelUnknownPrimitive;
 
 fun bel_eval_simple(expression) =
@@ -353,31 +414,6 @@ fun bel_eval_simple(expression) =
       in bel_eval_stack(expression, NIL, (NIL, NIL) , global, NIL)
   end;
 
-fun bel_obj_to_sml_str (bel_obj) =
-    bel_obj_to_sml_str_aux(bel_obj, [])
-and search_memo (obj, memo) =
-  let fun loop ([], idx) = ~1
-        | loop (tgt::rest, idx) =
-            if (tgt = obj)
-            then idx
-            else loop(rest, idx+1)
-  in loop(memo, 0)
-  end
-and bel_obj_to_sml_str_aux (NIL, _) =
-    "nil"
-  | bel_obj_to_sml_str_aux(SYMBOL(sym), memo_array) =
-    sym
-  | bel_obj_to_sml_str_aux(CHAR(c), memo_array) = implode([c])
-  | bel_obj_to_sml_str_aux(pair, memo_array) =
-     let val memo_idx = search_memo(pair, memo_array) in
-       if (memo_idx = ~1)
-       then "("
-            ^ bel_obj_to_sml_str_aux(bel_car(pair), memo_array@[pair])
-            ^ " . "
-            ^ bel_obj_to_sml_str_aux(bel_cdr(pair), memo_array@[pair])
-            ^ ")"
-       else "#" ^ Int.toString(memo_idx)
-     end
 
 fun simple_repl_loop env =(*ECHO REPL*)
     (print(">");
