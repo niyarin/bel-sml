@@ -215,6 +215,23 @@ read_str_aux cls =
           let val (quote_body,next_cls) = read_str_aux(tl(cls)) in
            (bel_join(SYMBOL("quote"), bel_join(quote_body, NIL)), next_cls)
           end
+      | #"`" =>
+          let val (body,next_cls) = read_str_aux(tl(cls)) in
+           (bel_join(SYMBOL("quasiquote"), bel_join(body, NIL)), next_cls)
+          end
+      | #"," =>
+          let val second = hd(tl(cls))
+          in if (second = #"@")
+             then
+               let val (body,next_cls) = read_str_aux(tl(tl(cls))) in
+                 (bel_join(SYMBOL("unquote-splicing"),
+                           bel_join(body, NIL)), next_cls)
+                end
+             else
+                let val (body,next_cls) = read_str_aux(tl(cls)) in
+                 (bel_join(SYMBOL("unquote"), bel_join(body, NIL)), next_cls)
+                end
+          end
       | #")" => (NIL,cls)
       | #"\"" => read_string(tl(cls))
       | _ => read_symbol(cls)
