@@ -169,10 +169,14 @@ fun read_list cls =
   let fun loop (cls) =
     let val cls_ = drop_while(space_p,cls) in
       case hd(cls_) of
-         #")" => (NIL,tl(cls_))
+         #"." => let val (v, rest) = read_str_aux(tl(cls_))
+                     val cls__ = tl(rest) (*remove right paren*)
+                 in (v, cls__)
+                 end
+         | #")" => (NIL,tl(cls_))
          | _ => let val (v, rest) = read_str_aux(cls_)
                     val (v2,rest2) = loop(rest)
-                in (PAIR(ref (ref v,ref v2)), rest2)
+                in (bel_join(v, v2), rest2)
                 end
     end
    in loop(cls)
@@ -346,6 +350,12 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
                                  bel_list5(SYMBOL("lit"), SYMBOL("clo"), NIL,
                                  bel_cadr(bel_cdr(expression)),bel_cadr(bel_cddr(expression)))),
                        stack, (NIL, NIL), global_env, lexical_env)
+  | bel_eval_expression(SYMBOL("mac"), expression, stack, (NIL,NIL), global_env, lexical_env) =
+        bel_eval_stack(bel_list3(SYMBOL("set"), bel_cadr(expression),
+                                 bel_list3(SYMBOL("lit"), SYMBOL("mac"),
+                                 bel_list5(SYMBOL("lit"), SYMBOL("clo"), NIL,
+                                 bel_cadr(bel_cdr(expression)),bel_cadr(bel_cddr(expression))))),
+                       stack, (NIL, NIL), global_env, lexical_env)
   | bel_eval_expression (SYMBOL("apply"), expression, stack, (NIL, NIL), global_env, lexical_env) =
         bel_eval_stack(bel_caddr(expression), bel_join(bel_list3(expression, NIL, bel_cddr(bel_cdr(expression))), stack),
                       (NIL,  NIL), global_env,lexical_env)
@@ -390,7 +400,8 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
   |bel_eval_expression (operator, expression, stack, (evaled, next) , global_env, lexical_env) =
    if (bel_contain_macro_in_evaled_p(evaled))
    then
-        let val quoted_eval1 = bel_join(bel_caddr(bel_car(evaled)), map_add_quote(next))
+        let val macro = bel_car(evaled)
+            val quoted_eval1 = bel_join(bel_caddr(macro), map_add_quote(next))
             val quoted_eval2 = bel_eval_stack(quoted_eval1, NIL, (NIL, NIL), global_env, NIL)
             in bel_eval_stack(quoted_eval2, stack, (NIL, NIL), global_env, lexical_env)
         end
