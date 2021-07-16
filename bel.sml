@@ -109,7 +109,7 @@ and bel_obj_to_sml_str_aux (NIL, _) =
     "nil"
   | bel_obj_to_sml_str_aux(SYMBOL(sym), memo_array) =
     sym
-  | bel_obj_to_sml_str_aux(CHAR(c), memo_array) = implode([c])
+  | bel_obj_to_sml_str_aux(CHAR(c), memo_array) = "\\" ^ implode([c])
   | bel_obj_to_sml_str_aux(pair, memo_array) =
      let val memo_idx = search_memo(pair, memo_array) in
        if (memo_idx = ~1)
@@ -237,6 +237,7 @@ read_str_aux cls =
                  (bel_join(SYMBOL("unquote"), bel_join(body, NIL)), next_cls)
                 end
           end
+      | #"\\" => (CHAR(hd(tl(cls))), tl(tl(cls)))
       | #")" => (NIL,cls)
       | #"\"" => read_string(tl(cls))
       | _ => read_symbol(cls)
