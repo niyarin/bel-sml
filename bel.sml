@@ -158,10 +158,11 @@ fun make_symbol(str) =
      |_ => SYMBOL(str);
 
 fun drop_while (pred, ls) =
-    let fun loop (ls) =
-        if (pred(hd(ls)))
-        then loop(tl(ls))
-        else ls
+    let fun loop([]) = []
+            |loop (ls) =
+              if (pred(hd(ls)))
+              then loop(tl(ls))
+              else ls
     in loop(ls)
     end;
 
@@ -189,7 +190,7 @@ and char_list_to_bel_string (cls) =
       in loop(cls)
       end
 and read_string cls =
-  let fun loop (res, cls) = 
+  let fun loop (res, cls) =
     if (hd(cls) = #"\"")
     then (char_list_to_bel_string(res), tl(cls))
     else loop(res@[hd(cls)], tl(cls))
@@ -210,7 +211,8 @@ read_symbol cls =
     in loop(cls,[])
     end
 and
-read_str_aux cls =
+read_str_aux [] = (NIL,[])
+|read_str_aux cls =
   if (space_p(hd(cls)))
   then read_str_aux(tl(cls))
   else
@@ -242,10 +244,16 @@ read_str_aux cls =
       | #"\"" => read_string(tl(cls))
       | _ => read_symbol(cls)
 
-
 fun read_str input_str =
     read_str_aux(explode(input_str));
 
+fun read_all input_str =
+  read_all_aux(explode(input_str))
+  and read_all_aux [] = []
+  |read_all_aux input =
+  let val (obj, rest) = read_str_aux(input)
+  in obj::(read_all_aux( drop_while(space_p,rest)))
+  end;
 
 fun make_prims (name_string_list) =
   let fun loop (name_list) = 
