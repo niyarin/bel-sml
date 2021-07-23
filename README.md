@@ -1,5 +1,5 @@
 # Bel-sml
-(WIP) Bel-sml is imprementation of [Paul Graham's bel](http://www.paulgraham.com/bel.html) written in Standard ML.
+(WIP) Bel-sml is implementation of [Paul Graham's bel](http://www.paulgraham.com/bel.html) written in Standard ML (of New Jersey).
 
 
 ## Implemented features
