@@ -373,6 +373,12 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
   | bel_eval_expression (SYMBOL("apply"), expression, stack, (evaled, NIL), global_env, lexical_env) =
        bel_eval_stack( bel_join(bel_cadr(expression), map_add_quote(bel_reverse_with_tail(bel_cdr(evaled), bel_car(evaled)))),
                        stack,(NIL, NIL), global_env, lexical_env)
+  | bel_eval_expression( SYMBOL("after"), expression, stack, (NIL, NIL), global_env, lexical_env) =
+      bel_eval_stack(bel_cadr(expression),
+        bel_join(bel_list3(expression, NIL, bel_cddr(expression)), stack),
+      (NIL, NIL), global_env, lexical_env)
+  | bel_eval_expression( SYMBOL("after"), expression, stack, (evaled, next), global_env, lexical_env) =
+      bel_eval_stack(bel_car(next), stack, (NIL, NIL), global_env, lexical_env)
   | bel_eval_expression (SYMBOL("apply"), expression, stack, (evaled, next), global_env, lexical_env) =
         bel_eval_stack(bel_car(next), bel_join(bel_list3(expression, evaled, bel_cdr(next)), stack),
                        (NIL,  NIL), global_env,lexical_env)
@@ -382,8 +388,9 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
                               SYMBOL("cont"),
                               stack,
                               lexical_env)
-     in bel_join(bel_cadr(expression),
-                 bel_join(bel_list2(SYMBOL("quote"), cont),NIL))
+     in
+        bel_eval_stack( bel_join(bel_cadr(expression), bel_join(bel_list2(SYMBOL("quote"), cont),NIL)),
+                        stack,(NIL,NIL),global_env, lexical_env)
      end
   |bel_eval_expression (operator, expression, stack, (NIL, NIL) , global_env, lexical_env) =
     bel_eval_expression (operator, expression, stack, (NIL, expression) , global_env, lexical_env)
@@ -401,6 +408,12 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
                bel_eval_stack(body, stack, (NIL, NIL),global_env,
                               bel_make_local_env(formals, bel_cdr(evaled), clo_env))
              end
+        |SYMBOL("cont") =>
+            let val stack_and_lexical_env = bel_cddr(bel_car(evaled))
+            in
+              bel_val_push(bel_cadr(evaled), bel_car(stack_and_lexical_env),
+                           global_env, bel_cadr(stack_and_lexical_env))
+            end
          |_ =>
              let val SYMBOL(sym) = bel_cadr(bel_car(evaled))
              in (print(sym);print("\n"); raise BelUnknownLit)
@@ -449,7 +462,7 @@ and bel_eval_prim(ope, evaled_operands, stack, global_env, lexical_env) =
            |SYMBOL("concatenate") =>
             bel_val_push(bel_concatenate(bel_car(evaled_operands)),
                          stack, global_env, lexical_env)
-            |SYMBOL("list") => bel_val_push(evaled_operands,stack, global_env, lexical_env)
+           |SYMBOL("list") => bel_val_push(evaled_operands,stack, global_env, lexical_env)
            |_ => raise  BelUnknownPrimitive;
 
 fun bel_eval_simple(expression) =
