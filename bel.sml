@@ -67,6 +67,8 @@ fun bel_list3(a, b, c) = bel_join(a, bel_list2(b, c));
 fun bel_list4(a, b, c, d) = bel_join(a,bel_list3(b, c, d));
 fun bel_list5(a, b, c, d, e) = bel_join(a,bel_list4(b, c, d, e));
 
+val bel_make_stack_cell = bel_list4;
+
 fun bel_reverse_with_tail(ls,tail) =
   let fun loop (ls, res) =
     if (ls = NIL)
@@ -302,7 +304,7 @@ fun bel_make_local_env (formals, args, tail) =
 exception BelUnknownPrimitive;
 exception BelUnknownLit;
 
-fun bel_eval_stack(PAIR(expression), stack, next,global_env, lexical_env) =
+fun bel_eval_stack(PAIR(expression), stack, next, global_env, lexical_env) =
       bel_eval_expression(bel_car(PAIR(expression)), PAIR(expression),
                           stack, next, global_env, lexical_env)
   | bel_eval_stack (SYMBOL("t"), stack, next, global_env, lexical_env) =
@@ -326,12 +328,21 @@ and bel_val_push(value, NIL,  global_env, lexical_env) = value
           val expression = bel_car(stack_cell)
           val evaled = bel_cadr(stack_cell)
           val next = bel_caddr(stack_cell)
-      in bel_eval_stack(expression, bel_cdr(stack_pair), (bel_join(value, evaled), next), global_env, lexical_env)
+          val new_lexical_env = bel_caddr(bel_cdr(stack_cell))
+      in bel_eval_stack(expression, bel_cdr(stack_pair), (bel_join(value,
+      evaled), next), global_env, new_lexical_env)
       end
 and bel_contain_macro_in_evaled_p (evaled) =
     bel_cdr(evaled) = NIL andalso
     bel_caar(evaled) = SYMBOL("lit") andalso
     bel_cadr(bel_car(evaled)) = SYMBOL("mac")
+and  make_stack_for_call_cont(NIL, cont_stack, cont_cell) = cont_cell
+  |  make_stack_for_call_cont(ls, cont_stack, cont_cell) =
+    if (ls = cont_stack)
+    then cont_cell
+    else if (bel_caar(bel_car(ls)) = SYMBOL("after"))
+         then bel_join(bel_car(ls),  make_stack_for_call_cont(bel_cdr(ls), cont_stack, cont_cell))
+         else make_stack_for_call_cont(bel_cdr(ls), cont_stack, cont_cell)
 and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_env) =
       bel_val_push(expression , stack, global_env, lexical_env)
   |bel_eval_expression (SYMBOL("quote"), expression, stack, next, global_env, lexical_env) =
@@ -345,10 +356,15 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
          bel_val_push(NIL, stack, global_env, lexical_env))
   | bel_eval_expression (SYMBOL("set"), expression, stack, (evaled, next), global_env, lexical_env) =
       (if (evaled = NIL) then NIL else bel_update_alist(global_env, bel_cadr(evaled), bel_car(evaled));
-       bel_eval_stack(bel_cadr(next), bel_join(bel_list3(expression, bel_join(bel_car(next), NIL), bel_cddr(next)), stack),
+       bel_eval_stack(bel_cadr(next),
+                      bel_join(
+                        bel_make_stack_cell(expression, bel_join(bel_car(next),
+                        NIL), bel_cddr(next), lexical_env),
+                        stack),
                      (NIL, NIL), global_env, lexical_env))
   | bel_eval_expression (SYMBOL("if"), expression, stack, (NIL, NIL), global_env, lexical_env) =
-         bel_eval_stack(bel_cadr(expression), bel_join(bel_list3(expression, NIL, NIL), stack),
+         bel_eval_stack(bel_cadr(expression), bel_join(bel_make_stack_cell
+                        (expression, NIL, NIL, lexical_env), stack),
                         (NIL, NIL), global_env, lexical_env)
   | bel_eval_expression (SYMBOL("if"), expression, stack, (evaled, NIL), global_env, lexical_env) =
         if (bel_car(evaled) = NIL)
@@ -366,7 +382,10 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
                                  bel_cadr(bel_cdr(expression)),bel_cadr(bel_cddr(expression))))),
                        stack, (NIL, NIL), global_env, lexical_env)
   | bel_eval_expression (SYMBOL("apply"), expression, stack, (NIL, NIL), global_env, lexical_env) =
-        bel_eval_stack(bel_caddr(expression), bel_join(bel_list3(expression, NIL, bel_cddr(bel_cdr(expression))), stack),
+        bel_eval_stack(bel_caddr(expression),
+                       bel_join(bel_make_stack_cell(expression, NIL,
+                       bel_cddr(bel_cdr(expression)), lexical_env),
+                       stack),
                       (NIL,  NIL), global_env,lexical_env)
   | bel_eval_expression( SYMBOL("quasiquote"), expression, stack, (NIL, NIL), global_env, lexical_env) =
         bel_eval_stack(quasi_quote_traverse(bel_cadr(expression)), stack, (NIL, NIL), global_env, lexical_env)
@@ -375,12 +394,13 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
                        stack,(NIL, NIL), global_env, lexical_env)
   | bel_eval_expression( SYMBOL("after"), expression, stack, (NIL, NIL), global_env, lexical_env) =
       bel_eval_stack(bel_cadr(expression),
-        bel_join(bel_list3(expression, NIL, bel_cddr(expression)), stack),
+        bel_join(bel_make_stack_cell(expression, NIL, bel_cddr(expression), lexical_env), stack),
       (NIL, NIL), global_env, lexical_env)
   | bel_eval_expression( SYMBOL("after"), expression, stack, (evaled, next), global_env, lexical_env) =
       bel_eval_stack(bel_car(next), stack, (NIL, NIL), global_env, lexical_env)
   | bel_eval_expression (SYMBOL("apply"), expression, stack, (evaled, next), global_env, lexical_env) =
-        bel_eval_stack(bel_car(next), bel_join(bel_list3(expression, evaled, bel_cdr(next)), stack),
+        bel_eval_stack(bel_car(next),
+                       bel_join(bel_make_stack_cell(expression, evaled, bel_cdr(next), lexical_env), stack),
                        (NIL,  NIL), global_env,lexical_env)
   | bel_eval_expression (SYMBOL("ccc"), expression, stack,
                          next, global_env, lexical_env) =
@@ -410,9 +430,15 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
              end
         |SYMBOL("cont") =>
             let val stack_and_lexical_env = bel_cddr(bel_car(evaled))
+                val cont_run_cell = bel_join(bel_make_stack_cell(expression,
+                bel_reverse(evaled), NIL, NIL), NIL)
+                val after_only_stack =
+                  make_stack_for_call_cont(stack, bel_car(stack_and_lexical_env), cont_run_cell)
             in
-              bel_val_push(bel_cadr(evaled), bel_car(stack_and_lexical_env),
-                           global_env, bel_cadr(stack_and_lexical_env))
+              if (after_only_stack = cont_run_cell)
+              then bel_val_push(bel_cadr(evaled), bel_car(stack_and_lexical_env),
+                                global_env, bel_cadr(stack_and_lexical_env))
+              else bel_val_push(NIL, after_only_stack, global_env, lexical_env)
             end
          |_ =>
              let val SYMBOL(sym) = bel_cadr(bel_car(evaled))
@@ -428,7 +454,7 @@ and bel_eval_expression (CHAR(_), expression, stack, next, global_env, lexical_e
             in bel_eval_stack(quoted_eval2, stack, (NIL, NIL), global_env, lexical_env)
         end
    else
-    bel_eval_stack(bel_car(next), bel_join(bel_list3(expression, evaled, bel_cdr(next)), stack),
+    bel_eval_stack(bel_car(next), bel_join(bel_make_stack_cell(expression, evaled, bel_cdr(next),lexical_env), stack),
                   (NIL, NIL), global_env, lexical_env)
 and bel_eval_prim(ope, evaled_operands, stack, global_env, lexical_env) =
       case ope of

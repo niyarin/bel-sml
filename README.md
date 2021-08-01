@@ -32,7 +32,7 @@
 | apply  |  ✔️ |
 | where  |  |
 | dyn  |  |
-| after |  |
+| after  |  ✔️ |
 | ccc  | ✔️ |
 | thread  |  |
 
