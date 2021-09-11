@@ -62,6 +62,19 @@ fun bel_syn (bel_char_list) =
     loop (bel_char_list, [])
   end
 
+fun bel_nom (SYMBOL(bel_symbol)) =
+let val head = bel_join(NIL,NIL)
+    val cell = head
+    fun loop(ls,cell) =
+      if (ls = [])
+      then bel_cdr(head)
+      else (bel_xdr(cell, bel_join(CHAR(hd(ls)),NIL));
+            loop(tl(ls), bel_cdr(cell)))
+in
+  loop(explode(bel_symbol),head)
+end
+      |bel_nom(_) = NIL;
+
 fun bel_list2(a, b) = bel_join(a, bel_join(b, NIL));
 fun bel_list3(a, b, c) = bel_join(a, bel_list2(b, c));
 fun bel_list4(a, b, c, d) = bel_join(a,bel_list3(b, c, d));
@@ -267,7 +280,7 @@ end;
 
 fun make_default_global (_) =
   make_prims(["id", "join", "car", "cdr", "type",
-              "xar", "xdr", "coin", "sym"]);
+              "xar", "xdr", "coin", "sym", "nom"]);
 
 fun bel_assq (PAIR(p), bel_obj) =
     if (bel_caar(PAIR(p)) = bel_obj)
@@ -484,6 +497,9 @@ and bel_eval_prim(ope, evaled_operands, stack, global_env, lexical_env) =
                           stack, global_env, lexical_env)
            |SYMBOL("sym") =>
             bel_val_push(bel_syn(bel_car(evaled_operands)),
+                         stack, global_env, lexical_env)
+           |SYMBOL("nom") =>
+            bel_val_push(bel_nom(bel_car(evaled_operands)),
                          stack, global_env, lexical_env)
            |SYMBOL("concatenate") =>
             bel_val_push(bel_concatenate(bel_car(evaled_operands)),
